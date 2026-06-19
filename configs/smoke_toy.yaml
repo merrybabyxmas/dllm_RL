@@ -1,0 +1,62 @@
+# Smoke test configuration: tiny run on synthetic arithmetic
+# Use to verify the training pipeline end-to-end before large experiments.
+# Do NOT use a real model — use any small available model.
+
+project:
+  name: confidence_credit_dllm_rl_smoke
+  output_dir: outputs/smoke_toy
+  seed: 42
+
+model:
+  # Use a tiny model for smoke tests
+  name_or_path: gpt2
+  precision: fp32
+  max_length: 64
+
+dataset:
+  name: synthetic_arithmetic
+  max_train_examples: 32
+  max_eval_examples: 8
+
+sampling:
+  group_size: 2
+  max_new_tokens: 16
+  diffusion_steps: 4
+  temperature: 0.0
+  mask_schedule: low_confidence
+  block_length: 16
+
+reward:
+  type: exact_match
+
+confidence:
+  mode: action_prob
+
+credit:
+  alpha: 1.0
+  eps: 1.0e-6
+  clip_min: 0.25
+  clip_max: 4.0
+  normalize_within_trajectory: true
+
+grpo:
+  reward_norm: group_zscore
+  reward_eps: 1.0e-6
+
+loss:
+  ppo_clip: 0.2
+  kl_beta: 0.0   # no KL for smoke
+  max_grad_norm: 1.0
+
+optimizer:
+  policy_lr: 1.0e-5
+  warmup_steps: 0
+
+train:
+  algorithm: stage1_cw_grpo
+  batch_prompts: 1
+  num_generations: 2
+  max_steps: 5
+  log_every: 1
+  eval_every: 5
+  save_every: 5

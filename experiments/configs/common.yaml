@@ -1,0 +1,47 @@
+# Common config for all 3000-step experiments
+# Note: torch_dtype, use_peft, load_in_4bit must be passed as CLI args, not config
+# GRPOConfig
+dataset: gsm8k
+seed: 42
+bf16: true
+
+sync_ref_model: false
+beta: 0.04
+epsilon: 0.2
+
+adam_beta1: 0.9
+adam_beta2: 0.99
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+warmup_ratio: 0.01
+logging_steps: 10
+learning_rate: 1e-6
+lr_scheduler_type: cosine
+
+num_generations: 4
+max_steps: 3000
+
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: false
+
+resume_from_checkpoint: false
+
+save_steps: 500
+save_strategy: steps
+save_total_limit: 10
+
+# Diffusion + GRPO params
+max_completion_length: 256
+max_prompt_length: 256
+block_length: 32
+diffusion_steps: 64
+generation_batch_size: 4
+remasking: low_confidence
+random_masking: true
+p_mask_prompt: 0.15
+num_iterations: 4

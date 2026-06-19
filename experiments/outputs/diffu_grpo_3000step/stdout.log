@@ -1,0 +1,104 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[init] device=cuda, method=diffu_grpo
+[init] output_dir=/home/dongwoo43/papers/paper_dllm/confidence_credit_dllm_rl/experiments/outputs/diffu_grpo_3000step
+[init] Loading tokenizer from /home/dongwoo43/papers/paper_dllm/LLaDA-8B-Instruct
+[init] Loading model from /home/dongwoo43/papers/paper_dllm/LLaDA-8B-Instruct
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights: 100%|██████████| 291/291 [00:00<00:00, 8372.38it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/home/dongwoo43/papers/paper_dllm/confidence_credit_dllm_rl/experiments/train_standalone.py:233: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast(enabled=True):
+[transformers] `use_return_dict` is deprecated! Use `return_dict` instead!
+trainable params: 83,886,080 || all params: 8,099,467,264 || trainable%: 1.0357
+[init] Loading GSM8K dataset...
+[init] Dataset size: 7473
+
+============================================================
+Starting diffu_grpo training for 3000 steps
+============================================================
+
+[step     1/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=12.2s
+[step    10/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=11.6s
+[step    20/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=11.9s
+[step    30/3000] loss=0.0000 reward=1.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=12.0s
+[step    40/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=12.0s
+[step    50/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=12.2s
+[step    60/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=17.9s
+[step    70/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.4s
+[step    80/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.5s
+[step    90/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   100/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   110/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   120/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.6s
+[step   130/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   140/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.2s
+[step   150/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   160/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   170/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   180/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   190/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   200/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   210/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   220/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   230/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   240/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   250/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   260/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   270/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   280/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   290/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   300/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   310/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   320/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   330/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   340/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   350/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   360/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   370/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   380/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   390/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   400/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   410/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   420/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   430/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   440/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   450/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   460/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   470/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.2s
+[step   480/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   490/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   500/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.6s
+[checkpoint] Saved to /home/dongwoo43/papers/paper_dllm/confidence_credit_dllm_rl/experiments/outputs/diffu_grpo_3000step/checkpoint-500
+[step   510/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.6s
+[step   520/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   530/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   540/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   550/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   560/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   570/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   580/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   590/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   600/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   610/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   620/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   630/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   640/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   650/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   660/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.2s
+[step   670/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   680/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   690/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   700/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   710/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   720/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   730/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   740/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   750/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   760/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.9s
+[step   770/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.8s
+[step   780/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   790/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   800/3000] loss=0.0000 reward=0.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.1s
+[step   810/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   820/3000] loss=0.0000 reward=0.500±0.000 adv=0.000 clip=0.000 kl=0.0000 time=25.7s
+[step   830/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s
+[step   840/3000] loss=0.0000 reward=3.000±0.000 adv=0.000 clip=0.000 kl=0.0000 time=26.0s

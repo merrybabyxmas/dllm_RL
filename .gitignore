@@ -1,0 +1,22 @@
+# Model checkpoints and outputs (too large for git)
+experiments/outputs/*/checkpoint-*/
+experiments/outputs/*/train.log
+experiments/outputs/monitor_plots/
+experiments/outputs/watcher_*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Data / model weights
+*.pt
+*.bin
+*.safetensors
+
+# Env
+.env
+*.env

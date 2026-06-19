@@ -1,0 +1,70 @@
+# Stage 3: Q-Value Confidence Credit
+# Adds Q-head for per-step (Q - V) advantage estimation.
+
+project:
+  name: confidence_credit_dllm_rl
+  output_dir: outputs/stage3_q_credit
+  seed: 1
+
+model:
+  name_or_path: MDLM-hf/LLaDA-8B-Instruct
+  precision: bf16
+  max_length: 512
+
+dataset:
+  name: gsm8k
+  max_train_examples: null
+  max_eval_examples: 256
+
+sampling:
+  group_size: 8
+  max_new_tokens: 256
+  diffusion_steps: 64
+  temperature: 0.0
+  mask_schedule: low_confidence
+  block_length: 64
+
+reward:
+  type: exact_match
+
+confidence:
+  mode: action_prob
+
+credit:
+  alpha: 1.0
+  eps: 1.0e-6
+  clip_min: 0.25
+  clip_max: 4.0
+  normalize_within_trajectory: true
+
+grpo:
+  reward_norm: group_zscore
+  reward_eps: 1.0e-6
+
+critic:
+  value_hidden_size: 1024
+  value_mlp_layers: 2
+  loss_coef: 0.5
+  q_hidden_size: 1024
+  q_mlp_layers: 2
+  q_loss_coef: 0.5
+
+loss:
+  ppo_clip: 0.2
+  kl_beta: 0.01
+  max_grad_norm: 1.0
+
+optimizer:
+  policy_lr: 1.0e-6
+  critic_lr: 5.0e-6
+  q_lr: 5.0e-6
+  warmup_steps: 50
+
+train:
+  algorithm: stage3_q_credit
+  batch_prompts: 1
+  num_generations: 8
+  max_steps: 3000
+  log_every: 10
+  eval_every: 100
+  save_every: 500
