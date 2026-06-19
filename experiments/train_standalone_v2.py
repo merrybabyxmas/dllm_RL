@@ -715,9 +715,11 @@ def rollout_and_compute_advantages(
     rewards = torch.tensor(total_rewards, dtype=torch.float32, device=device)
 
     # ---- GRPO advantages -----------------------------------------------------
-    # Group = all num_gen completions for the same prompt
+    # Group = all num_gen completions for the same prompt.
+    # Use population std (unbiased=False) to match the smoke-test math
+    # where group size G is fixed and we want the biased estimator.
     mu    = rewards.mean()
-    sigma = rewards.std()
+    sigma = rewards.std(unbiased=False)
     group_adv = (rewards - mu) / (sigma + 1e-8)  # [num_gen]
 
     # ---- Per-token confidence weights (Stage 1 / 2) -------------------------

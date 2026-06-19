@@ -24,7 +24,7 @@ if not hasattr(_trl_import_utils, "is_rich_available"):
 
 # Add the d1/diffu-grpo directory to the Python path so that
 # `diffu_grpo_trainer` and related modules are importable.
-_DIFFU_GRPO_PATH = "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo"
+_DIFFU_GRPO_PATH = os.environ.get("D1_DIFFU_GRPO_PATH", "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo")
 if _DIFFU_GRPO_PATH not in sys.path:
     sys.path.insert(0, _DIFFU_GRPO_PATH)
 

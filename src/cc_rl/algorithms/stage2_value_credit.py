@@ -1,19 +1,32 @@
 """
-Stage 2: State-Value Confidence Credit (Value Credit) trainer.
+Stage 2: Value-Baseline Confidence Credit trainer.
 
-Extends CWGRPOTrainer with a learned value head V(s) attached to the backbone.
-The per-step advantage becomes:
+NOTE ON IMPLEMENTATION STATUS
+------------------------------
+The original design called for true per-reveal-step delta-V credit:
 
-    local_adv_t = V(s_{t+1}) - V(s_t)   [non-terminal]
-    local_adv_t = r - V(s_t)             [terminal]
-
-then weighted by the confidence-derived responsibility:
-
+    local_adv_t = V(s_{t+1}) - V(s_t)   [non-terminal reveal step]
+    local_adv_t = r - V(s_t)             [terminal step]
     final_adv_t = local_adv_t * rho_t
 
-The value head is trained jointly via an MSE loss on the final reward:
+This requires recording the backbone hidden state at every reveal event,
+which is not available in the flat completion_ids format used by the TRL
+DiffuGRPOTrainer base class.
 
-    L_value = (V(s_terminal) - r)^2
+CURRENT IMPLEMENTATION
+-----------------------
+What is actually implemented here is:
+  - A value head V trained with MSE against the final reward r.
+  - The policy advantage remains the Stage 1 confidence-weighted group
+    advantage (i.e. this module falls through to CWGRPOTrainer.compute_loss).
+  - The value head is trained as an auxiliary objective; it does NOT yet
+    produce the per-step delta-V signal described above.
+
+This is more accurately described as "Stage 1 + auxiliary value-head training"
+rather than true delta-V credit assignment.
+
+TODO: override _generate_and_score_completions to snapshot hidden states at
+each block boundary, then compute block-level V(s_{b+1}) - V(s_b) here.
 
 Policy and value head use separate optimizers with different learning rates.
 """
@@ -26,7 +39,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-_DIFFU_GRPO_PATH = "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo"
+_DIFFU_GRPO_PATH = os.environ.get(
+    "D1_DIFFU_GRPO_PATH",
+    "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo",
+)
 if _DIFFU_GRPO_PATH not in sys.path:
     sys.path.insert(0, _DIFFU_GRPO_PATH)
 

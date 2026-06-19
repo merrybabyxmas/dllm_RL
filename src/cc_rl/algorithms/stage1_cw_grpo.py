@@ -37,7 +37,10 @@ if not hasattr(_trl_iu, "is_rich_available"):
         _trl_iu.is_rich_available = lambda: False
 
 # Ensure d1/diffu-grpo is importable
-_DIFFU_GRPO_PATH = "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo"
+_DIFFU_GRPO_PATH = os.environ.get(
+    "D1_DIFFU_GRPO_PATH",
+    "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo",  # local fallback
+)
 if _DIFFU_GRPO_PATH not in sys.path:
     sys.path.insert(0, _DIFFU_GRPO_PATH)
 
@@ -197,6 +200,20 @@ class CWGRPOTrainer(DiffuGRPOTrainer):
         """
         if return_outputs:
             raise ValueError("CWGRPOTrainer does not support returning outputs")
+
+        # INTEGRATION CHECK: confidence_weights must be injected by the data
+        # pipeline (i.e. _generate_and_score_completions must be overridden to
+        # call generate_with_confidence and attach the weights to inputs).
+        # If this key is absent, Stage 1 silently falls back to standard GRPO.
+        # TODO: override _generate_and_score_completions to guarantee injection.
+        import warnings as _warnings
+        if "confidence_weights" not in inputs or inputs.get("confidence_weights") is None:
+            _warnings.warn(
+                "CWGRPOTrainer.compute_loss: 'confidence_weights' not found in "
+                "inputs — falling back to standard GRPO (no confidence weighting). "
+                "Override _generate_and_score_completions to inject confidence weights.",
+                stacklevel=2,
+            )
 
         prompt_ids = inputs["prompt_ids"]
         prompt_mask = inputs["prompt_mask"]

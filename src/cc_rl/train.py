@@ -28,7 +28,7 @@ import torch
 import yaml
 
 # Ensure d1/diffu-grpo is importable
-_DIFFU_GRPO_PATH = "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo"
+_DIFFU_GRPO_PATH = os.environ.get("D1_DIFFU_GRPO_PATH", "/home/dongwoo43/papers/paper_dllm/d1/diffu-grpo")
 if _DIFFU_GRPO_PATH not in sys.path:
     sys.path.insert(0, _DIFFU_GRPO_PATH)
 
