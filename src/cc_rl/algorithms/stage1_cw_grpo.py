@@ -179,6 +179,119 @@ class CWGRPOTrainer(DiffuGRPOTrainer):
             return x, token_confidence
 
     # ------------------------------------------------------------------
+    # Override rollout to inject confidence_weights into inputs
+    # ------------------------------------------------------------------
+
+    def _generate_and_score_completions(
+        self,
+        inputs: dict,
+    ) -> dict:
+        """
+        Override d1's rollout to replace generate() with generate_with_confidence()
+        and attach per-token responsibility weights to the returned inputs dict.
+
+        All reward scoring, logp computation, and advantage normalization are
+        handled by the parent class; we only replace the generation call and
+        append confidence_weights so that compute_loss() can use them.
+        """
+        from trl.trainer.utils import unwrap_model_for_generation
+
+        device = self.accelerator.device
+
+        # ---- Re-derive prompt tensors (same logic as parent) -----------------
+        from trl.data_utils import maybe_apply_chat_template, is_conversational
+        prompts_text = [
+            maybe_apply_chat_template(example, self.processing_class)["prompt"]
+            for example in inputs
+        ]
+        prompt_inputs = self.processing_class(
+            text=prompts_text,
+            return_tensors="pt",
+            padding=True,
+            padding_side="left",
+            add_special_tokens=False,
+        )
+        from transformers import Trainer as _Trainer
+        prompt_inputs = _Trainer._prepare_inputs(self, prompt_inputs)
+        prompt_ids = prompt_inputs["input_ids"]
+        if self.max_prompt_length is not None:
+            prompt_ids = prompt_ids[:, -self.max_prompt_length:]
+
+        gen_length   = self.args.max_completion_length
+        block_length = self.args.block_length
+        steps        = self.args.diffusion_steps
+        temperature  = self.args.temperature or 0.0
+        cfg_scale    = self.args.cfg_scale
+
+        # ---- Generate with confidence tracking (replaces parent's generate()) -
+        all_full_ids       = []
+        all_token_conf     = []
+
+        with unwrap_model_for_generation(self.model_wrapped, self.accelerator) as unwrapped:
+            bs = getattr(self.args, "generation_batch_size", prompt_ids.size(0))
+            for i in range(0, prompt_ids.size(0), bs):
+                batch_prompt = prompt_ids[i: i + bs]
+                full_ids, tok_conf = self.generate_with_confidence(
+                    model=unwrapped,
+                    prompt=batch_prompt,
+                    steps=steps,
+                    gen_length=gen_length,
+                    block_length=block_length,
+                    temperature=temperature,
+                    cfg_scale=cfg_scale,
+                    remasking=self.args.remasking,
+                    mask_id=self.args.mask_id,
+                )
+                all_full_ids.append(full_ids)
+                all_token_conf.append(tok_conf)
+                del batch_prompt, full_ids, tok_conf
+                torch.cuda.empty_cache()
+
+        prompt_completion_ids = torch.cat(all_full_ids, dim=0)
+        token_confidence      = torch.cat(all_token_conf, dim=0)  # [B, total_len]
+
+        # ---- Build completion mask -------------------------------------------
+        prompt_length  = prompt_ids.size(1)
+        completion_ids = prompt_completion_ids[:, prompt_length:]
+        is_eos         = completion_ids == self.processing_class.eos_token_id
+        eos_idx        = torch.full((is_eos.size(0),), is_eos.size(1),
+                                    dtype=torch.long, device=device)
+        eos_idx[is_eos.any(dim=1)] = is_eos.int().argmax(dim=1)[is_eos.any(dim=1)]
+        seq_idx        = torch.arange(is_eos.size(1), device=device).expand(is_eos.size(0), -1)
+        completion_mask = (seq_idx <= eos_idx.unsqueeze(1)).int()  # [B, comp_len]
+
+        # ---- Confidence → responsibility weights ----------------------------
+        conf_completion = token_confidence[:, prompt_length:]  # [B, comp_len]
+        eps      = self.credit_eps
+        alpha    = self.credit_alpha
+        clip_min = self.credit_clip_min
+        clip_max = self.credit_clip_max
+
+        rho      = (conf_completion.float() + eps).pow(-alpha).clamp(clip_min, clip_max)
+        mask_f   = completion_mask.float()
+        mean_rho = (rho * mask_f).sum(1, keepdim=True) / mask_f.sum(1, keepdim=True).clamp(min=1.0)
+        confidence_weights = rho / (mean_rho + 1e-8)  # [B, comp_len]
+
+        # ---- Run parent for everything else (rewards, logps, advantages) ----
+        # We temporarily monkey-patch self.generate so the parent call uses our
+        # already-generated ids without re-running generation.
+        _cached_ids   = prompt_completion_ids
+        _orig_generate = self.generate
+
+        def _cached_generate(model, prompt, **kwargs):
+            return _cached_ids[: prompt.size(0)]
+
+        self.generate = _cached_generate
+        try:
+            result = super()._generate_and_score_completions(inputs)
+        finally:
+            self.generate = _orig_generate
+
+        # ---- Attach confidence weights to result ----------------------------
+        result["confidence_weights"] = confidence_weights  # [B, comp_len]
+        return result
+
+    # ------------------------------------------------------------------
     # Loss computation with confidence weighting
     # ------------------------------------------------------------------
 

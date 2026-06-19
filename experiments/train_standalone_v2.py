@@ -274,15 +274,18 @@ def generate_with_confidence(
     cfg_scale: float = 0.0,
     remasking: str = "low_confidence",
     mask_id: int = 126336,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, List[torch.Tensor]]:
     """
-    Like generate() but also returns per-token confidence.
+    Like generate() but also returns per-token confidence and block boundary states.
 
     Returns
     -------
     x               : [bs, prompt_len + gen_length]
     token_confidence: [bs, prompt_len + gen_length]
         0.0 for prompt positions; softmax prob at reveal time for generated tokens.
+    block_states    : List of (num_blocks + 1) tensors, each [bs, prompt_len + gen_length]
+        Snapshots of x before block 0 and after each block.
+        Used for block-level delta-V credit assignment in Stage 2.
     """
     bs = prompt.shape[0]
     dtype = model.dtype
@@ -298,6 +301,9 @@ def generate_with_confidence(
     assert gen_length % block_length == 0
     num_blocks = gen_length // block_length
     steps_per_block = max(1, steps // num_blocks)
+
+    # Snapshot state before any block (all completion tokens masked)
+    block_states: List[torch.Tensor] = [x.clone()]
 
     for num_block in range(num_blocks):
         start_idx = prompt.shape[1] + num_block * block_length
@@ -354,7 +360,10 @@ def generate_with_confidence(
 
                 x[transfer_index] = x0[transfer_index]
 
-    return x, token_confidence
+        # Snapshot state after this block (all tokens in block now revealed)
+        block_states.append(x.clone())
+
+    return x, token_confidence, block_states
 
 
 def forward_process(
@@ -653,8 +662,8 @@ def rollout_and_compute_advantages(
     model.eval()
     with torch.no_grad():
         if cfg.method in ("stage1", "stage2"):
-            # Track confidence at reveal time
-            full_ids, token_conf = generate_with_confidence(
+            # Track confidence at reveal time + block boundary states for delta-V
+            full_ids, token_conf, block_states = generate_with_confidence(
                 model=model,
                 prompt=prompt_ids,
                 steps=cfg.diffusion_steps,
@@ -677,7 +686,8 @@ def rollout_and_compute_advantages(
                 remasking=cfg.remasking,
                 mask_id=cfg.mask_id,
             )
-            token_conf = None
+            token_conf  = None
+            block_states = None
 
     prompt_length  = prompt_ids.shape[1]
     completion_ids = full_ids[:, prompt_length:]    # [num_gen, completion_len]
@@ -736,18 +746,47 @@ def rollout_and_compute_advantages(
             clip_max=cfg.credit_clip_max,
         )  # [num_gen, completion_len]
 
-    # ---- Stage 2: value head for trajectory-level baseline ------------------
-    value_estimates = None
-    pooled_hidden = None       # [num_gen, hidden_size] – saved for replay buffer
-    if cfg.method == "stage2" and value_head is not None:
+    # ---- Stage 2: block-level delta-V values --------------------------------
+    # Compute V(s_b) for each block boundary state b=0..num_blocks.
+    # block_delta_v[g, b] = V(s_{b+1}) - V(s_b)  for b in range(num_blocks)
+    # This is the true per-block causal credit signal.
+    value_estimates = None   # terminal V(s_T) for replay buffer / diagnostics
+    pooled_hidden   = None   # [num_gen, hidden] – terminal state, for replay
+    block_delta_v   = None   # [num_gen, num_blocks] – per-block delta-V
+
+    if cfg.method == "stage2" and value_head is not None and block_states is not None:
+        num_blocks_gen = len(block_states) - 1   # = gen_length // block_length
+        block_values   = []                       # list of [num_gen] tensors
+
+        for b_state in block_states:
+            with torch.no_grad():
+                out = model(b_state, output_hidden_states=True)
+            h   = out.hidden_states[-1].detach()  # [num_gen, total_len, hidden]
+            atm = torch.ones(num_gen, b_state.shape[1], device=device)
+            m3  = atm.unsqueeze(-1)
+            pooled_b = (h * m3).sum(1) / m3.sum(1).clamp(min=1.0)  # [num_gen, hidden]
+            v_b = value_head.forward_pooled(pooled_b)                # [num_gen]
+            block_values.append(v_b)
+            del out, h, m3, pooled_b
+            torch.cuda.empty_cache()
+
+        # Terminal value + pooled hidden for replay buffer
+        pooled_h_terminal = None
         with torch.no_grad():
-            outputs = model(full_ids, output_hidden_states=True)
-        hidden = outputs.hidden_states[-1].detach()  # [num_gen, total_len, hidden]
-        attn_mask = torch.ones(num_gen, full_ids.shape[1], device=device)
-        # Mean-pool once; reuse for both value estimate and replay push
-        mask_3d = attn_mask.unsqueeze(-1)
-        pooled_hidden = (hidden * mask_3d).sum(1) / mask_3d.sum(1).clamp(min=1.0)
-        value_estimates = value_head.forward_pooled(pooled_hidden)  # [num_gen]
+            out_t = model(block_states[-1], output_hidden_states=True)
+        h_t = out_t.hidden_states[-1].detach()
+        atm_t = torch.ones(num_gen, block_states[-1].shape[1], device=device)
+        m3_t  = atm_t.unsqueeze(-1)
+        pooled_hidden   = (h_t * m3_t).sum(1) / m3_t.sum(1).clamp(min=1.0)  # for replay
+        value_estimates = block_values[-1]                                      # V(s_T)
+        del out_t, h_t, m3_t
+        torch.cuda.empty_cache()
+
+        # Block delta-V: [num_gen, num_blocks]
+        block_delta_v = torch.stack(
+            [block_values[b + 1] - block_values[b] for b in range(num_blocks_gen)],
+            dim=1,
+        )  # [num_gen, num_blocks]
 
     # ---- Random masking seed for logp computation ---------------------------
     mask_seed = int(torch.randint(0, 2 ** 12, (1,)).item())
@@ -790,8 +829,9 @@ def rollout_and_compute_advantages(
         "mask_seed":           mask_seed,
         "rewards":             rewards,               # [num_gen]
         "confidence_weights":  conf_weights_completion,  # [num_gen, completion_len] or None
-        "value_estimates":     value_estimates,       # [num_gen] or None
+        "value_estimates":     value_estimates,       # [num_gen] or None  (terminal V)
         "pooled_hidden":       pooled_hidden,         # [num_gen, hidden] or None
+        "block_delta_v":       block_delta_v,         # [num_gen, num_blocks] or None
         "completions_text":    completions_text,
     }
 
@@ -824,7 +864,8 @@ def compute_policy_loss(
     ref_logps       = rollout["ref_logps"]            # [1, G, L] or None
     mask_seed       = rollout["mask_seed"]
     conf_weights    = rollout["confidence_weights"]   # [G, L] or None
-    value_estimates = rollout["value_estimates"]      # [G] or None
+    value_estimates = rollout["value_estimates"]      # [G] or None  (terminal V)
+    block_delta_v   = rollout.get("block_delta_v")   # [G, num_blocks] or None
     rewards         = rollout["rewards"]              # [G]
 
     G, L = completion_ids.shape
@@ -848,34 +889,44 @@ def compute_policy_loss(
     new_logps = new_logps.squeeze(0)   # [G, L]
     old_logps = old_logps.squeeze(0)   # [G, L]
 
-    # ---- Advantage construction (Stage 2 critic quality gate) ---------------
-    # Stage 2 advantage (R - V(s)) is only used when:
-    #   (a) warm-up is done (step > critic_warmup_steps), AND
-    #   (b) EMA explained variance >= critic_expvar_gate
-    # Otherwise fall back to Stage 1 / GRPO group advantage.
+    # ---- Advantage construction ---------------------------------------------
     using_stage2_adv = False
-    warmup_done = step > getattr(cfg, "critic_warmup_steps", 0)
+    warmup_done  = step > getattr(cfg, "critic_warmup_steps", 0)
     critic_ready = ema_expvar >= getattr(cfg, "critic_expvar_gate", 0.05)
 
-    if cfg.method == "stage2" and value_estimates is not None and warmup_done and critic_ready:
-        residual = rewards.float() - value_estimates.float().detach()  # [G]
-        res_std  = residual.std()
-        if res_std > 1e-6:
-            effective_adv = (residual - residual.mean()) / (res_std + 1e-8)
-            using_stage2_adv = True
-        else:
-            effective_adv = group_adv
-    else:
-        effective_adv = group_adv  # [G]
+    if cfg.method == "stage2" and block_delta_v is not None and warmup_done and critic_ready:
+        # True block-level delta-V credit:
+        #   A_t = V(s_{b+1}) - V(s_b)  for token t in block b
+        # Spread each block's delta uniformly to all tokens in that block,
+        # then weight by per-token confidence responsibility rho_t.
+        num_blocks_gen = block_delta_v.shape[1]
+        block_len_gen  = L // num_blocks_gen
 
-    # Build per-token advantage tensor
-    if cfg.method in ("stage1", "stage2") and conf_weights is not None:
-        # weighted_adv[g, t] = effective_adv[g] * conf_weights[g, t]
-        # (conf_weights already normalized to unit mean within each trajectory)
-        weighted_adv = effective_adv.unsqueeze(1) * conf_weights  # [G, L]
+        token_delta_v = torch.zeros(G, L, device=device)
+        for b in range(num_blocks_gen):
+            s = b * block_len_gen
+            e = (b + 1) * block_len_gen
+            token_delta_v[:, s:e] = block_delta_v[:, b:b+1].detach().expand(-1, block_len_gen)
+
+        # Normalize per-trajectory via masked mean/std
+        mask_f  = completion_mask.float()
+        dv_mean = (token_delta_v * mask_f).sum(1, keepdim=True) / mask_f.sum(1, keepdim=True).clamp(min=1.0)
+        dv_var  = ((token_delta_v - dv_mean) ** 2 * mask_f).sum(1, keepdim=True) / mask_f.sum(1, keepdim=True).clamp(min=1.0)
+        dv_std  = (dv_var + 1e-8).sqrt()
+        delta_v_norm = (token_delta_v - dv_mean) / dv_std  # [G, L], zero-mean/unit-std
+
+        if conf_weights is not None:
+            weighted_adv = delta_v_norm * conf_weights  # [G, L]
+        else:
+            weighted_adv = delta_v_norm
+        using_stage2_adv = True
+
+    elif cfg.method in ("stage1", "stage2") and conf_weights is not None:
+        # Stage 1 / Stage 2 fallback: confidence-weighted group advantage
+        weighted_adv = group_adv.unsqueeze(1) * conf_weights  # [G, L]
     else:
-        # Standard GRPO: broadcast scalar advantage to all completion tokens
-        weighted_adv = effective_adv.unsqueeze(1).expand(G, L)    # [G, L]
+        # Standard GRPO: broadcast scalar advantage
+        weighted_adv = group_adv.unsqueeze(1).expand(G, L)    # [G, L]
 
     # ---- PPO-clip loss -------------------------------------------------------
     # ratio = exp(new_logps - old_logps)
