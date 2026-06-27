@@ -633,6 +633,7 @@ def rollout_and_compute_advantages(
     cfg,
     device: torch.device,
     value_head: Optional[ValueHead] = None,
+    reward_fn=None,
 ) -> dict:
     """
     Perform rollout for one training step.
@@ -707,20 +708,22 @@ def rollout_and_compute_advantages(
     prompts_for_reward = [example["prompt"]] * num_gen
     completions_for_reward = completions_text
 
-    reward_fns = [correctness_reward_func, int_reward_func, soft_format_reward_func]
-    answers_for_reward = [example.get("answer", "")] * num_gen
-
-    total_rewards = np.zeros(num_gen)
-    for rfn in reward_fns:
-        try:
-            r = rfn(
-                prompts=prompts_for_reward,
-                completions=completions_for_reward,
-                answer=answers_for_reward,
-            )
-            total_rewards += np.array(r, dtype=np.float32)
-        except Exception:
-            pass
+    if reward_fn is not None:
+        total_rewards = np.array(reward_fn(example, completions_text), dtype=np.float32)
+    else:
+        reward_fns = [correctness_reward_func, int_reward_func, soft_format_reward_func]
+        answers_for_reward = [example.get("answer", "")] * num_gen
+        total_rewards = np.zeros(num_gen)
+        for rfn in reward_fns:
+            try:
+                r = rfn(
+                    prompts=prompts_for_reward,
+                    completions=completions_for_reward,
+                    answer=answers_for_reward,
+                )
+                total_rewards += np.array(r, dtype=np.float32)
+            except Exception:
+                pass
 
     rewards = torch.tensor(total_rewards, dtype=torch.float32, device=device)
 

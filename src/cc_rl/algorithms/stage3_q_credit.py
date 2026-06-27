@@ -13,6 +13,7 @@ Both value head and Q-head are trained via MSE to the terminal reward.
 """
 from __future__ import annotations
 
+import os
 import sys
 from typing import Optional
 
