@@ -83,6 +83,7 @@ class CWGRPOTrainer(DiffuGRPOTrainer):
     # Generation with confidence tracking
     # ------------------------------------------------------------------
 
+    @torch.no_grad()
     def generate_with_confidence(
         self,
         model: torch.nn.Module,
@@ -194,7 +195,7 @@ class CWGRPOTrainer(DiffuGRPOTrainer):
         handled by the parent class; we only replace the generation call and
         append confidence_weights so that compute_loss() can use them.
         """
-        from trl.trainer.utils import unwrap_model_for_generation
+        from trl.models import unwrap_model_for_generation
 
         device = self.accelerator.device
 
@@ -273,19 +274,26 @@ class CWGRPOTrainer(DiffuGRPOTrainer):
         confidence_weights = rho / (mean_rho + 1e-8)  # [B, comp_len]
 
         # ---- Run parent for everything else (rewards, logps, advantages) ----
-        # We temporarily monkey-patch self.generate so the parent call uses our
-        # already-generated ids without re-running generation.
-        _cached_ids   = prompt_completion_ids
+        # Monkey-patch self.generate so the parent uses our already-generated ids.
+        # Use an offset counter so sub-batching (generation_batch_size < total batch)
+        # returns the correct slice for each parent generate() call instead of always
+        # returning the first `bs` rows.
+        _cached_ids    = prompt_completion_ids  # [total_batch, prompt_len + gen_len]
         _orig_generate = self.generate
+        _offset        = [0]
 
         def _cached_generate(model, prompt, **kwargs):
-            return _cached_ids[: prompt.size(0)]
+            bs = prompt.size(0)
+            start = _offset[0]
+            _offset[0] += bs
+            return _cached_ids[start : start + bs]
 
         self.generate = _cached_generate
         try:
             result = super()._generate_and_score_completions(inputs)
         finally:
             self.generate = _orig_generate
+            _offset[0]    = 0  # reset for safety
 
         # ---- Attach confidence weights to result ----------------------------
         result["confidence_weights"] = confidence_weights  # [B, comp_len]

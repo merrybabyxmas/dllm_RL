@@ -1,8 +1,6 @@
 # Model checkpoints and outputs (too large for git)
-experiments/outputs/*/checkpoint-*/
-experiments/outputs/*/train.log
-experiments/outputs/monitor_plots/
-experiments/outputs/watcher_*.log
+experiments/outputs/
+.claude/
 
 # Python
 __pycache__/
