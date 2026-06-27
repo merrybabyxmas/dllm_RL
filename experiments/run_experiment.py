@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
 Official experiment runner.
-Datasets: gsm8k, mbpp, humaneval, svamp  × methods: baseline, diffu_grpo, stage2
+Datasets: gsm8k, mbpp, humaneval, svamp, countdown, spider
+Methods:  baseline, delta_v_only
 
-- baseline  : zero-shot eval, no training
-- diffu_grpo: official DiffuGRPOTrainer (d1 package), 1 epoch
-- stage2    : ValueCreditTrainer (delta-V + confidence weighting), 1 epoch
+- baseline    : zero-shot eval, no training
+- delta_v_only: ValueCreditTrainer with delta-V credit (no confidence weighting), 1 epoch
 
 Usage:
-  python experiments/run_experiment.py --dataset mbpp       --method baseline
-  python experiments/run_experiment.py --dataset humaneval  --method diffu_grpo
-  python experiments/run_experiment.py --dataset svamp      --method stage2
+  python experiments/run_experiment.py --dataset mbpp     --method baseline
+  python experiments/run_experiment.py --dataset gsm8k    --method delta_v_only --gen_length 256
+  python experiments/run_experiment.py --dataset countdown --method delta_v_only --gen_length 128
 """
 from __future__ import annotations
 

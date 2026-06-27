@@ -99,7 +99,9 @@ wait_for_free_gpu() {
 }
 
 # ---------------------------------------------------------------------------
-# Run one experiment on a specific GPU slot
+# Run one experiment on a specific GPU slot.
+# Only the PID is printed to stdout (captured by caller).
+# All progress messages go to stderr so they appear on the terminal.
 # ---------------------------------------------------------------------------
 run_on_gpu_slot() {
     local SLOT=$1
@@ -108,18 +110,9 @@ run_on_gpu_slot() {
     local GL=$4
 
     local GPU_ID="${GPU_ARRAY[$SLOT]}"
-    local RESULT_DIR="${OUT_BASE}/${DS}/gl${GL}/${METHOD}"
-    local RESULT_FILE="${RESULT_DIR}/result.json"
     local LOG_FILE="${LOG_DIR}/${DS}_gl${GL}_${METHOD}.log"
 
-    # Skip if result already exists
-    if [[ -f "${RESULT_FILE}" ]]; then
-        echo "[SKIP]  ${DS}/gl${GL}/${METHOD}  (result.json exists)"
-        echo "0"   # return fake PID 0 so caller doesn't register it
-        return
-    fi
-
-    echo "[START] GPU${GPU_ID}  ${DS}/gl${GL}/${METHOD}  -> ${LOG_FILE}"
+    echo "[START] GPU${GPU_ID}  ${DS}/gl${GL}/${METHOD}  -> ${LOG_FILE}" >&2
 
     CUDA_VISIBLE_DEVICES="${GPU_ID}" \
     PYTORCH_ALLOC_CONF="expandable_segments:True" \
@@ -128,10 +121,11 @@ run_on_gpu_slot() {
         --method  "${METHOD}" \
         --gen_length "${GL}" \
         --max_train_examples "${MAX_TRAIN}" \
+        --max_value_states 2 \
         --output_dir "${OUT_BASE}" \
         > "${LOG_FILE}" 2>&1 &
 
-    echo "$!"
+    echo "$!"   # only PID → captured by PID=$(run_on_gpu_slot ...)
 }
 
 # ---------------------------------------------------------------------------
